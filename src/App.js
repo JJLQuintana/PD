@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Systemconfig from './Systemconfig.js';
+
 
 const Sidebar = ({ setPage }) => {
   return (
@@ -20,14 +22,14 @@ const Sidebar = ({ setPage }) => {
             <span>Blacklist</span>
           </div>
         </li>
-        <li style={sidebarItem} onClick={() => setPage('Sample1')}>
+        <li style={sidebarItem} onClick={() => setPage('systemconfig')}>
           <div style={sidebarIconContainer}>
-            <span>Sample1</span>
+            <span>System Configuration</span>
           </div>
         </li>
-        <li style={sidebarItem} onClick={() => setPage('Sample11')}>
+        <li style={sidebarItem} onClick={() => setPage('settings')}>
           <div style={sidebarIconContainer}>
-            <span>Sample11</span>
+            <span>Settings</span>
           </div>
         </li>
         <li style={sidebarItem} onClick={() => setPage('reports')}>
@@ -39,6 +41,7 @@ const Sidebar = ({ setPage }) => {
     </div>
   );
 };
+
 
 function App() {
   const [page, setPage] = useState('login');
@@ -54,7 +57,7 @@ function App() {
     if (savedSession?.isLoggedIn && savedSession?.user) {
       setIsLoggedIn(true);
       setCurrentUser(savedSession.user);
-      setPage('dashboard');
+      setPage('detection logs');
     }
   }, []);
 
@@ -79,7 +82,7 @@ function App() {
       const adminUser = { email: 'admin', password: 'admin', username: 'Administrator' };
       setCurrentUser(adminUser);
       setIsLoggedIn(true);
-      setPage('dashboard');
+      setPage('detection logs');
       return;
     }
 
@@ -87,7 +90,7 @@ function App() {
     if (user) {
       setCurrentUser(user);
       setIsLoggedIn(true);
-      setPage('dashboard');
+      setPage('detection logs');
     } else {
       alert('Invalid email or password.');
     }
@@ -120,14 +123,15 @@ function App() {
       <Sidebar setPage={setPage} />
       <div style={{ marginLeft: '250px', width: 'calc(100% - 250px)' }}>
         <nav style={topNavStyle}>
-          <button onClick={() => setPage('dashboard')} style={navButton}>Dashboard</button>
+          <button onClick={() => setPage('detection logs')} style={navButton}>Detection Logs</button>
           <button onClick={() => setPage('policies')} style={navButton}>Policies</button>
-          <button onClick={() => setPage('settings')} style={navButton}>Settings</button>
+          <button onClick={() => setPage('authorized admin')} style={navButton}>Admin</button>
           <button onClick={() => { setIsLoggedIn(false); setPage('login'); setCurrentUser(null); }} style={navButton}>Logout</button>
         </nav>
       </div>
     </div>
   );
+  
 
   const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -160,12 +164,19 @@ function App() {
     );
   };
 
-  const Dashboard = () => {
+
+  
+  const DetectionLogs = () => {
     const [logs, setLogs] = useState([]);
     const [currentTime, setCurrentTime] = useState(new Date());
   
     useEffect(() => {
-      setLogs([{ time: '2025-04-30 12:34', type: 'SYN Flood' }]);
+      // Example detection logs
+      setLogs([
+        { time: '2025-05-01 08:12:44', type: 'SYN Flood', policy: 'Blocked IP 192.168.1.23' },
+        { time: '2025-05-01 09:23:10', type: 'UDP Flood', policy: 'Rate-limited Port 53' },
+        { time: '2025-05-01 11:45:32', type: 'ICMP Flood', policy: 'Dropped packets >100ms window' },
+      ]);
   
       const interval = setInterval(() => {
         setCurrentTime(new Date());
@@ -175,56 +186,61 @@ function App() {
     }, []);
   
     const handleRefresh = () => {
-      window.location.reload();
+      window.location.reload(); // Simple refresh
     };
   
     return (
       <div style={{ ...pageStyle, marginLeft: '260px' }}>
-        <h2>Dashboard</h2>
+        <h2>Detection Logs</h2>
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' , gap:'20px'}}>
             <h3 style={{ margin: 0 }}>Attack Logs</h3>
             <div style={{ textAlign: 'right' }}>
               <button
                 onClick={handleRefresh}
-                style={{
-                  ...buttonStyle,
-                  width: 'auto',
-                  padding: '10px 50px',
-                  fontSize: '20px',
-                  marginBottom: '5px'
-                }}
+                style={{ ...buttonStyle, width: 'auto', padding: '10px 50px', fontSize: '20px', marginBottom: '5px' }}
               >
                 Refresh
               </button>
-              <div style={{ fontSize: '12px', color: '#aaa' }}>
-                {currentTime.toLocaleTimeString()}
-              </div>
+              <div style={{ fontSize: '12px', color: '#aaa', border:'1px solid #555', padding: '5px 15px', borderRadius: '8px', backgroundColor: '#1a1a1a', display: 'inline-block',marginLeft:'12px' }}>{currentTime.toLocaleTimeString()}</div>
             </div>
           </div>
-          {logs.map((log, i) => (
-            <p key={i}>{log.time} - {log.type}</p>
-          ))}
-        </div>
   
-        <div style={{ ...cardStyle, marginBottom: 20 }}>
-          <h3>Detected DoS Attacks:</h3>
-          <p>Last Attack:</p>
-          <img
-            src="/last-attack.png"
-            alt="Last DoS Attack Graph"
-            style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', borderRadius: '8px' }}
-          />
-        </div>
-  
-        <div style={{ ...cardStyle, marginBottom: 20 }}>
-          <h3>Current System Status:</h3>
-          <p style={{ color: 'lime' }}>Operational</p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+            <thead>
+              <tr>
+                <th style={tableHeaderStyle}>Timestamp</th>
+                <th style={tableHeaderStyle}>Attack Classification</th>
+                <th style={tableHeaderStyle}>Automated Policy Update</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log, index) => (
+                <tr key={index}>
+                  <td style={tableCellStyle}>{log.time}</td>
+                  <td style={tableCellStyle}>{log.type}</td>
+                  <td style={tableCellStyle}>{log.policy}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );
   };
   
+  // Table styling
+  const tableHeaderStyle = {
+    borderBottom: '2px solid #ccc',
+    padding: '10px',
+    textAlign: 'left',
+    backgroundColor: '#212224',
+  };
+  
+  const tableCellStyle = {
+    padding: '10px',
+    borderBottom: '1px solid #eee',
+  };
 
   const Reports = () => (
     <div style={{ ...pageStyle, marginLeft: '260px' }}>
@@ -286,22 +302,26 @@ function App() {
 
   const Whitelist = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>Whitelist Page</h2><p>This is the Whitelist content.</p></div>);
   const Blacklist = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>Blacklist Page</h2><p>This is the Blacklist content.</p></div>);
-  const Sample1 = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>Sample1 Page</h2><p>This is the Sample1 content.</p></div>);
-  const Sample11 = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>Sample11 Page</h2><p>Sample11</p></div>);
+  const SystemConfig = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>SystemConfig Page</h2><p>This is the Sample1 content.</p></div>);
+  const Admin = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>Authorized Admin</h2><p>Admin</p></div>);
+  
 
   return (
     <div style={{ backgroundColor: '#121212', minHeight: '100vh', color: '#fff' }}>
       {isLoggedIn && <Navbar />}
       {!isLoggedIn && page === 'login' && <LoginPage />}
       {!isLoggedIn && page === 'register' && <RegisterPage />}
-      {isLoggedIn && page === 'dashboard' && <Dashboard />}
+      {isLoggedIn && page === 'detection logs' && <DetectionLogs />}
       {isLoggedIn && page === 'policies' && <Policies />}
       {isLoggedIn && page === 'settings' && <Settings />}
       {isLoggedIn && page === 'whitelist' && <Whitelist />}
       {isLoggedIn && page === 'blacklist' && <Blacklist />}
-      {isLoggedIn && page === 'Sample1' && <Sample1 />}
-      {isLoggedIn && page === 'Sample11' && <Sample11 />}
+      {isLoggedIn && page === 'authorized admin' && <Admin />}
       {isLoggedIn && page === 'reports' && <Reports />}
+      {isLoggedIn && page === 'systemconfig' && <Systemconfig />}
+
+      
+      
     </div>
   );
 }
