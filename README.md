@@ -68,3 +68,8 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+DESIGN OF DEEP LEARNING BASED DENIAL-OF-SERVICE ATTACK DETECTION FOR AN INTRUSION PREVENTION SYSTEM WITH AUTOMATED POLICY UPDATING  GITHUB REPOSITORY
+
+CONTENTS:
+# WEBAPP 
+# LSTM + AUTOENCODER 
