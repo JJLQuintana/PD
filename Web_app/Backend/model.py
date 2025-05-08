@@ -1,17 +1,6 @@
-import pandas as pd
 import torch 
 import torch.nn as nn
-from sklearn.preprocessing import StandardScaler
-
-#data load and preprocessing
-
-df = pd.read_csv("test_pcap_625.csv", delimiter='\t')
-
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(df.values)  
-
-input_tensor = torch.tensor(X_scaled, dtype=torch.float32)
-input_tensor = input_tensor.unsqueeze(0)
+from preprocessing import preprocess_input
 
 # define the model (Vanilla Autoencoder)
 class VanillaAutoencoder(nn.Module):
@@ -45,11 +34,14 @@ class LSTMClassifier(nn.Module):
         out = self.fc(out[:, -1, :])
         return torch.sigmoid(out)
 
+if __name__ == "__main__":
+    csv_path = "Test.pcap_ISCX.csv"
+    input_tensor, label_tensor = preprocess_input() 
+
 #load model  
 input_size = input_tensor.shape[2]  # number of features
 model = LSTMClassifier(input_size=input_size)
 
-model = BEST_LSTM_VANILLAAE_MODEL.pth()
 PATH = "Web_app\Backend\BEST_LSTM_VANILLAAE_MODEL.pth"
 model.load_state_dict(torch.load(PATH))
 model.eval()
