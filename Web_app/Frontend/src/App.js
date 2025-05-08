@@ -163,30 +163,38 @@ function App() {
       </div>
     );
   };
-
-
   
   const DetectionLogs = () => {
     const [logs, setLogs] = useState([]);
     const [currentTime, setCurrentTime] = useState(new Date());
   
     useEffect(() => {
-      // Example detection logs
-      setLogs([
-        { time: '2025-05-01 08:12:44', type: 'SYN Flood', policy: 'Blocked IP 192.168.1.23' },
-        { time: '2025-05-01 09:23:10', type: 'UDP Flood', policy: 'Rate-limited Port 53' },
-        { time: '2025-05-01 11:45:32', type: 'ICMP Flood', policy: 'Dropped packets >100ms window' },
-      ]);
-  
+      setLogs([]); // Clear previous logs
       const interval = setInterval(() => {
         setCurrentTime(new Date());
       }, 1000);
-  
       return () => clearInterval(interval);
     }, []);
   
-    const handleRefresh = () => {
-      window.location.reload(); // Simple refresh
+    const fetchPrediction = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+setLogs(prevLogs => [
+  ...prevLogs,
+  {
+    time: new Date().toLocaleString(),            // shown in Timestamp column
+    type: data.result === "benign" ? "Benign Traffic" : "Suspicious Activity", // Classification column
+    policy: `Raw Log: ${data.raw_log || 'N/A'}`   // Raw Server Log column
+  }
+]);
+
+      } catch (error) {
+        console.error('Error fetching prediction:', error);
+      }
     };
   
     return (
@@ -196,22 +204,19 @@ function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0 }}>Attack Logs</h3>
             <div style={{ textAlign: 'right' }}>
-              <button
-                onClick={handleRefresh}
-                style={{ ...buttonStyle, width: 'auto', padding: '10px 50px', fontSize: '20px', marginBottom: '5px' }}
-              >
+            <button onClick={() => setCurrentTime(new Date())} style={{ ...buttonStyle, width: 'auto', padding: '10px 50px', fontSize: '20px', marginBottom: '5px' }}>
                 Refresh
               </button>
               <div style={{ fontSize: '12px', color: '#aaa' }}>{currentTime.toLocaleTimeString()}</div>
             </div>
           </div>
-  
+          <button onClick={fetchPrediction} style={buttonStyle}>Run Detection</button>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
             <thead>
               <tr>
                 <th style={tableHeaderStyle}>Timestamp</th>
-                <th style={tableHeaderStyle}>Attack Classification</th>
-                <th style={tableHeaderStyle}>Automated Policy Update</th>
+                <th style={tableHeaderStyle}>Classification</th>
+                <th style={tableHeaderStyle}>Raw Server Log</th>
               </tr>
             </thead>
             <tbody>
@@ -228,6 +233,9 @@ function App() {
       </div>
     );
   };
+  
+  
+  
   
   // Table styling
   const tableHeaderStyle = {
