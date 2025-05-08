@@ -1,11 +1,15 @@
 # %% [markdown]
-# # Test
+# # Design of Deep Learning-based Denial-of-Service Attack Detection for an Intrusion Prevention System with Automated Policy Updating
 
 # %% [markdown]
-# 
+# ## Model Training LSTM + Denoise Autoencoder
+
+# %% [markdown]
+# ### Imports
 
 # %%
 import pandas as pd
+import numpy as np
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, confusion_matrix, roc_curve, auc, classification_report
@@ -24,6 +28,9 @@ from radon.complexity import cc_visit
 # for checking if cuda is working c:
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
+
+# %% [markdown]
+# ### Dataset (preprocessing)
 
 # %%
 df = pd.read_csv('Dataset\Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv')
@@ -54,8 +61,11 @@ print(check_Label) # 0 = Benign, 1 = DDoS
 # %%
 df = df.replace([float('inf'), float('-inf')], pd.NA).dropna() # dropping rows with nan and inf values
 
+# %% [markdown]
+# ### Standardize and Splitting
+
 # %%
-X = df.drop(columns=['Label'])
+X = df.drop(columns=[   'Label'])
 y = df['Label']
 
 # %%
@@ -96,19 +106,19 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 # %%
 # Denoising Autoencoder
 class DenoisingAutoencoder(nn.Module):
-    def __init__(self, input_dim, latent_dim=32, noise_std=0.1):
+    def __init__(self, input_dim, latent_dim=64, noise_std=0.1):  # Increase latent_dim
         super(DenoisingAutoencoder, self).__init__()
-        self.noise_std = noise_std  # standard deviation for Gaussian noise
+        self.noise_std = noise_std
 
         self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 128),
+            nn.Linear(input_dim, 256),  # Increased number of hidden neurons
             nn.ReLU(),
-            nn.Linear(128, latent_dim)
+            nn.Linear(256, latent_dim)
         )
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 128),
+            nn.Linear(latent_dim, 256),
             nn.ReLU(),
-            nn.Linear(128, input_dim)
+            nn.Linear(256, input_dim)
         )
 
     def forward(self, x):
@@ -124,7 +134,7 @@ class DenoisingAutoencoder(nn.Module):
         return x_reconstructed, z
 
 
-# LSTM classifier (unchanged)
+# LSTM classifier
 class LSTMClassifier(nn.Module):
     def __init__(self, input_size, hidden_dim=64):
         super(LSTMClassifier, self).__init__()
@@ -141,7 +151,7 @@ class LSTMClassifier(nn.Module):
 # model initialization
 input_dim = X_train.shape[1]
 latent_dim = 32
-noise_std = 0.1  # you can adjust this as needed
+noise_std = 0.1 
 
 autoencoder = DenoisingAutoencoder(input_dim=input_dim, latent_dim=latent_dim, noise_std=noise_std).to(device)
 lstm = LSTMClassifier(input_size=latent_dim).to(device)
@@ -308,7 +318,6 @@ print("All tasks completed.")
 
 
 # %%
-# Set models to evaluation mode
 autoencoder.eval()
 lstm.eval()
 
@@ -335,6 +344,7 @@ with torch.no_grad():
         all_preds.extend(preds)
         all_labels.extend(labels)
 
+# %%
 # Convert lists to numpy arrays
 all_preds = np.array(all_preds)
 all_probs = np.array(all_probs)
@@ -350,6 +360,12 @@ plt.ylabel("Actual")
 plt.tight_layout()
 plt.show()
 
+# %%
+# Misclassification Rate
+misclassification_rate = (cm[0][1] + cm[1][0]) / cm.sum()
+print(f"Misclassification Rate: {misclassification_rate:.4f}")
+
+# %%
 # ROC Curve
 fpr, tpr, _ = roc_curve(all_labels, all_probs)
 roc_auc = auc(fpr, tpr)
@@ -364,11 +380,6 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
-
-# Optional: Print classification report
-print("\n=== Classification Report ===")
-print(classification_report(all_labels, all_preds, target_names=['Normal', 'Attack']))
-
 
 # %%
 epochs = range(1, len(train_losses) + 1)
