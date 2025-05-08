@@ -2,7 +2,7 @@
 # # Design of Deep Learning-based Denial-of-Service Attack Detection for an Intrusion Prevention System with Automated Policy Updating
 
 # %% [markdown]
-# ## Model Training
+# ## Model Training LSTM + Vanilla Autoencoder
 
 # %% [markdown]
 # ### Imports
@@ -65,7 +65,7 @@ df = df.replace([float('inf'), float('-inf')], pd.NA).dropna() # dropping rows w
 # ### Standardize and Splitting
 
 # %%
-X = df.drop(columns=['Label'])
+X = df.drop(columns=['Destination Port', 'Label'])
 y = df['Label']
 
 # %%
@@ -110,19 +110,19 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
 # ### Model (LSTM + Vanilla Autoencoder)
 
 # %%
-# define the model
+# Vanilla Autoencoder
 class VanillaAutoencoder(nn.Module):
     def __init__(self, input_dim, latent_dim=32):
         super(VanillaAutoencoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Linear(input_dim, 128),
+            nn.Linear(input_dim, 256),
             nn.ReLU(),
-            nn.Linear(128, latent_dim)
+            nn.Linear(256, latent_dim)
         )
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 128),
+            nn.Linear(latent_dim, 256),
             nn.ReLU(),
-            nn.Linear(128, input_dim)
+            nn.Linear(256, input_dim)
         )
 
     def forward(self, x):
@@ -150,8 +150,8 @@ latent_dim = 32
 autoencoder = VanillaAutoencoder(input_dim, latent_dim).to(device)
 lstm = LSTMClassifier(input_size=latent_dim).to(device)
 
-ae_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.001)
-lstm_optimizer = torch.optim.Adam(lstm.parameters(), lr=0.001)
+ae_optimizer = torch.optim.Adam(autoencoder.parameters(), lr=0.0001)
+lstm_optimizer = torch.optim.Adam(lstm.parameters(), lr=0.0001)
 criterion = nn.BCELoss()
 
 # %%
@@ -342,6 +342,8 @@ with torch.no_grad():
         all_preds.extend(preds)
         all_labels.extend(labels)
 
+
+# %%
 # confusion matrix
 cm = confusion_matrix(all_labels, all_preds)
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
@@ -349,6 +351,11 @@ plt.title("Confusion Matrix")
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
 plt.show()
+
+# %%
+# misclassification rate
+misclassification_rate = (cm[0][1] + cm[1][0]) / cm.sum()
+print(f"Misclassification Rate: {misclassification_rate:.4f}")
 
 # %%
 # ROC Curve
@@ -366,11 +373,11 @@ plt.grid()
 plt.show()
 
 # %%
-epochs = range(1, num_epochs + 1)
+epochs = range(1, len(train_losses) + 1)
 
 plt.figure(figsize=(16, 5))
 
-# loss plot
+# Loss plot
 plt.subplot(1, 3, 1)
 plt.plot(epochs, train_losses, label='Train Loss', marker='o')
 plt.plot(epochs, test_losses, label='Test Loss', marker='s')
@@ -380,7 +387,7 @@ plt.ylabel('Loss')
 plt.legend()
 plt.grid(True)
 
-# accuracy plot
+# Accuracy plot
 plt.subplot(1, 3, 2)
 plt.plot(epochs, train_accuracies, label='Train Accuracy', marker='o')
 plt.plot(epochs, test_accuracies, label='Test Accuracy', marker='s')
@@ -390,7 +397,7 @@ plt.ylabel('Accuracy (%)')
 plt.legend()
 plt.grid(True)
 
-# f1-score plot
+# F1-score plot
 plt.subplot(1, 3, 3)
 plt.plot(epochs, train_f1s, label='Train F1-Score', marker='o')
 plt.plot(epochs, test_f1s, label='Test F1-Score', marker='s')
@@ -402,6 +409,7 @@ plt.grid(True)
 
 plt.tight_layout()
 plt.show()
+
 
 # %%
 autoencoder.eval()
