@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import Systemconfig from './Systemconfig.js';
+import Systemconfig from './Systemconfig'
+
 
 
 const Sidebar = ({ setPage }) => {
@@ -22,14 +23,14 @@ const Sidebar = ({ setPage }) => {
             <span>Blacklist</span>
           </div>
         </li>
-        <li style={sidebarItem} onClick={() => setPage('systemconfig')}>
+        <li style={sidebarItem} onClick={() => setPage('system configuration')}>
           <div style={sidebarIconContainer}>
-            <span>System Configuration</span>
+            <span>Systemconfig</span>
           </div>
         </li>
-        <li style={sidebarItem} onClick={() => setPage('settings')}>
+        <li style={sidebarItem} onClick={() => setPage('authorized admin')}>
           <div style={sidebarIconContainer}>
-            <span>Settings</span>
+            <span>Admin</span>
           </div>
         </li>
         <li style={sidebarItem} onClick={() => setPage('reports')}>
@@ -42,12 +43,12 @@ const Sidebar = ({ setPage }) => {
   );
 };
 
-
 function App() {
   const [page, setPage] = useState('login');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  
 
   useEffect(() => {
     const savedUsers = JSON.parse(localStorage.getItem('users')) || [];
@@ -125,13 +126,12 @@ function App() {
         <nav style={topNavStyle}>
           <button onClick={() => setPage('detection logs')} style={navButton}>Detection Logs</button>
           <button onClick={() => setPage('policies')} style={navButton}>Policies</button>
-          <button onClick={() => setPage('authorized admin')} style={navButton}>Admin</button>
+          <button onClick={() => setPage('settings')} style={navButton}>Settings</button>
           <button onClick={() => { setIsLoggedIn(false); setPage('login'); setCurrentUser(null); }} style={navButton}>Logout</button>
         </nav>
       </div>
     </div>
   );
-  
 
   const LoginPage = () => {
     const [email, setEmail] = useState('');
@@ -163,55 +163,60 @@ function App() {
       </div>
     );
   };
-
-
   
   const DetectionLogs = () => {
     const [logs, setLogs] = useState([]);
     const [currentTime, setCurrentTime] = useState(new Date());
   
     useEffect(() => {
-      // Example detection logs
-      setLogs([
-        { time: '2025-05-01 08:12:44', type: 'SYN Flood', policy: 'Blocked IP 192.168.1.23' },
-        { time: '2025-05-01 09:23:10', type: 'UDP Flood', policy: 'Rate-limited Port 53' },
-        { time: '2025-05-01 11:45:32', type: 'ICMP Flood', policy: 'Dropped packets >100ms window' },
-      ]);
-  
+      setLogs([]); // Clear previous logs
       const interval = setInterval(() => {
         setCurrentTime(new Date());
       }, 1000);
-  
       return () => clearInterval(interval);
     }, []);
   
-    const handleRefresh = () => {
-      window.location.reload(); // Simple refresh
+    const fetchPrediction = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+setLogs(prevLogs => [
+  ...prevLogs,
+  {
+    time: new Date().toLocaleString(),            // shown in Timestamp column
+    type: data.result === "benign" ? "Benign Traffic" : "Suspicious Activity", // Classification column
+    policy: `Raw Log: ${data.raw_log || 'N/A'}`   // Raw Server Log column
+  }
+]);
+
+      } catch (error) {
+        console.error('Error fetching prediction:', error);
+      }
     };
   
     return (
       <div style={{ ...pageStyle, marginLeft: '260px' }}>
         <h2>Detection Logs</h2>
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' , gap:'20px'}}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0 }}>Attack Logs</h3>
             <div style={{ textAlign: 'right' }}>
-              <button
-                onClick={handleRefresh}
-                style={{ ...buttonStyle, width: 'auto', padding: '10px 50px', fontSize: '20px', marginBottom: '5px' }}
-              >
+            <button onClick={() => setCurrentTime(new Date())} style={{ ...buttonStyle, width: 'auto', padding: '10px 50px', fontSize: '20px', marginBottom: '5px' }}>
                 Refresh
               </button>
-              <div style={{ fontSize: '12px', color: '#aaa', border:'1px solid #555', padding: '5px 15px', borderRadius: '8px', backgroundColor: '#1a1a1a', display: 'inline-block',marginLeft:'12px' }}>{currentTime.toLocaleTimeString()}</div>
+              <div style={{ fontSize: '12px', color: '#aaa' }}>{currentTime.toLocaleTimeString()}</div>
             </div>
           </div>
-  
+          <button onClick={fetchPrediction} style={buttonStyle}>Run Detection</button>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
             <thead>
               <tr>
                 <th style={tableHeaderStyle}>Timestamp</th>
-                <th style={tableHeaderStyle}>Attack Classification</th>
-                <th style={tableHeaderStyle}>Automated Policy Update</th>
+                <th style={tableHeaderStyle}>Classification</th>
+                <th style={tableHeaderStyle}>Raw Server Log</th>
               </tr>
             </thead>
             <tbody>
@@ -228,6 +233,9 @@ function App() {
       </div>
     );
   };
+  
+  
+  
   
   // Table styling
   const tableHeaderStyle = {
@@ -300,8 +308,142 @@ function App() {
     );
   };
 
-  const Whitelist = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>Whitelist Page</h2><p>This is the Whitelist content.</p></div>);
-  const Blacklist = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>Blacklist Page</h2><p>This is the Blacklist content.</p></div>);
+  const Whitelist = () => {
+    const [whitelist, setWhitelist] = useState(() => {
+      return JSON.parse(localStorage.getItem('dosWhitelist')) || [];
+    });
+    const [ipInput, setIpInput] = useState('');
+  
+    const saveWhitelist = (list) => {
+      localStorage.setItem('dosWhitelist', JSON.stringify(list));
+      setWhitelist(list);
+    };
+  
+    const handleAddIp = () => {
+      const trimmed = ipInput.trim();
+      const ipRegex = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)){3}$/;
+  
+      if (!ipRegex.test(trimmed)) {
+        alert('Invalid IP address.');
+        return;
+      }
+      if (whitelist.includes(trimmed)) {
+        alert('IP already whitelisted.');
+        return;
+      }
+  
+      saveWhitelist([...whitelist, trimmed]);
+      setIpInput('');
+    };
+  
+    const handleRemoveIp = (ip) => {
+      const updatedList = whitelist.filter(item => item !== ip);
+      saveWhitelist(updatedList);
+    };
+  
+    return (
+      <div style={{ ...pageStyle, marginLeft: '260px' }}>
+        <h2>Whitelist Page</h2>
+  
+        <div style={cardStyle}>
+          <h3>Trusted IP Addresses</h3>
+  
+          <input
+            type="text"
+            value={ipInput}
+            onChange={e => setIpInput(e.target.value)}
+            placeholder="Enter IP address"
+            style={inputStyle}
+          />
+          <button onClick={handleAddIp} style={buttonStyle}>Add IP</button>
+  
+          <ul style={{ marginTop: 20 }}>
+            {whitelist.length === 0 && <p>No IPs whitelisted.</p>}
+            {whitelist.map(ip => (
+              <li key={ip} style={{ marginBottom: 10 }}>
+                {ip}
+                <button
+                  onClick={() => handleRemoveIp(ip)}
+                  style={{ ...buttonStyle, marginLeft: 10, backgroundColor: '#822' }}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  };
+  
+  const Blacklist = () => {
+    const [blacklist, setBlacklist] = useState(() => {
+      return JSON.parse(localStorage.getItem('dosBlacklist')) || [];
+    });
+    const [ipInput, setIpInput] = useState('');
+  
+    const saveBlacklist = (list) => {
+      localStorage.setItem('dosBlacklist', JSON.stringify(list));
+      setBlacklist(list);
+    };
+  
+    const handleAddIp = () => {
+      const trimmed = ipInput.trim();
+      const ipRegex = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)){3}$/;
+  
+      if (!ipRegex.test(trimmed)) {
+        alert('Invalid IP address.');
+        return;
+      }
+      if (blacklist.includes(trimmed)) {
+        alert('IP already blacklisted.');
+        return;
+      }
+  
+      saveBlacklist([...blacklist, trimmed]);
+      setIpInput('');
+    };
+  
+    const handleRemoveIp = (ip) => {
+      const updatedList = blacklist.filter(item => item !== ip);
+      saveBlacklist(updatedList);
+    };
+  
+    return (
+      <div style={{ ...pageStyle, marginLeft: '260px' }}>
+        <h2>Blacklist Page</h2>
+  
+        <div style={cardStyle}>
+          <h3>Blocked IP Addresses</h3>
+  
+          <input
+            type="text"
+            value={ipInput}
+            onChange={e => setIpInput(e.target.value)}
+            placeholder="Enter IP address"
+            style={inputStyle}
+          />
+          <button onClick={handleAddIp} style={buttonStyle}>Add IP</button>
+  
+          <ul style={{ marginTop: 20 }}>
+            {blacklist.length === 0 && <p>No IPs blacklisted.</p>}
+            {blacklist.map(ip => (
+              <li key={ip} style={{ marginBottom: 10 }}>
+                {ip}
+                <button
+                  onClick={() => handleRemoveIp(ip)}
+                  style={{ ...buttonStyle, marginLeft: 10, backgroundColor: '#a00' }}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  };
+  
   const SystemConfig = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>SystemConfig Page</h2><p>This is the Sample1 content.</p></div>);
   const Admin = () => (<div style={{ ...pageStyle, marginLeft: '260px' }}><h2>Authorized Admin</h2><p>Admin</p></div>);
   
@@ -316,10 +458,10 @@ function App() {
       {isLoggedIn && page === 'settings' && <Settings />}
       {isLoggedIn && page === 'whitelist' && <Whitelist />}
       {isLoggedIn && page === 'blacklist' && <Blacklist />}
+      {isLoggedIn && page === 'systemconfig' && <SystemConfig />}
       {isLoggedIn && page === 'authorized admin' && <Admin />}
       {isLoggedIn && page === 'reports' && <Reports />}
-      {isLoggedIn && page === 'systemconfig' && <Systemconfig />}
-
+      {isLoggedIn && page === 'system configuration' && <Systemconfig />}
       
       
     </div>

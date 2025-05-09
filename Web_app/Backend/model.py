@@ -1,11 +1,18 @@
-import torch 
+from flask import Flask, jsonify
+import torch
 import torch.nn as nn
-from preprocessing import preprocess_input
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+import os
 
-# define the model (Vanilla Autoencoder)
-class VanillaAutoencoder(nn.Module):
-    def __init__(self, input_dim, latent_dim=32):
-        super(VanillaAutoencoder, self).__init__()
+app = Flask(__name__)
+
+# =====================
+# Model Definition
+# =====================
+class LSTMAutoencoder(nn.Module):
+    def __init__(self, input_dim, latent_dim=32, hidden_dim=64):
+        super(LSTMAutoencoder, self).__init__()
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, 128),
             nn.ReLU(),
@@ -16,39 +23,68 @@ class VanillaAutoencoder(nn.Module):
             nn.ReLU(),
             nn.Linear(128, input_dim)
         )
+        self.lstm = nn.LSTM(input_size=latent_dim, hidden_size=hidden_dim, batch_first=True)
+        self.fc = nn.Linear(hidden_dim, 1)
 
     def forward(self, x):
         z = self.encoder(x)
         x_reconstructed = self.decoder(z)
-        return x_reconstructed, z
-
-
-class LSTMClassifier(nn.Module):
-    def __init__(self, input_size, hidden_dim=64):
-        super(LSTMClassifier, self).__init__()
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_dim, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, 1)
-
-    def forward(self, x):
-        out, _ = self.lstm(x)
+        z = z.unsqueeze(1)  # (batch, seq_len=1, latent_dim)
+        out, _ = self.lstm(z)
         out = self.fc(out[:, -1, :])
-        return torch.sigmoid(out)
+        return x_reconstructed, out
 
+# =====================
+# Load Model Once
+# =====================
+MODEL_PATH = os.path.join("Web_app", "Backend", "BEST_LSTM_VANILLAAE_MODEL.pth")
+CSV_PATH = os.path.join("Web_app", "Backend", "Test_pcap.csv")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def load_model(input_dim):
+    model = LSTMAutoencoder(input_dim=input_dim, latent_dim=32, hidden_dim=128).to(device)
+    checkpoint = torch.load(MODEL_PATH, map_location=device)
+
+    model_state_dict = checkpoint.get('autoencoder_state_dict', {})
+    lstm_state_dict = checkpoint.get('lstm_state_dict', {})
+
+    model.load_state_dict(model_state_dict, strict=False)
+    model.lstm.load_state_dict(lstm_state_dict, strict=False)
+    model.eval()
+    return model
+
+# =====================
+# Inference Route
+# =====================
+@app.route("/predict", methods=["GET"])
+def predict():
+    df = pd.read_csv(CSV_PATH)
+    df.columns = df.columns.str.strip()
+
+    # Label conversion
+    attack_labels = ('DoS GoldenEye', 'DoS Hulk', 'DoS Slowhttptest', 'DoS slowloris', 'Heartbleed')
+    df['Label'] = df['Label'].apply(lambda x: 1 if any(attack in x for attack in attack_labels) else 0)
+
+    df = df.replace([float('inf'), float('-inf')], pd.NA).dropna()
+
+    X = df.drop(columns=['Label'])
+    y = df['Label']
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    input_tensor = torch.tensor(X_scaled, dtype=torch.float32).to(device)
+
+    model = load_model(input_dim=X.shape[1])
+
+    with torch.no_grad():
+        _, output = model(input_tensor)
+        predictions = (output > 0.5).int().cpu().numpy().flatten().tolist()
+
+    result = [{"sample": i, "label": "DoS" if pred == 1 else "Benign"} for i, pred in enumerate(predictions)]
+    return jsonify(result)
+
+# =====================
+# Run App
+# =====================
 if __name__ == "__main__":
-    csv_path = "Test.pcap_ISCX.csv"
-    input_tensor, label_tensor = preprocess_input() 
-
-#load model  
-input_size = input_tensor.shape[2]  # number of features
-model = LSTMClassifier(input_size=input_size)
-
-PATH = "Web_app\Backend\BEST_LSTM_VANILLAAE_MODEL.pth"
-model.load_state_dict(torch.load(PATH))
-model.eval()
-
-
-with torch.no_grad():
-    output = model(input_tensor)
-    prediction = (output > 0.5).int()  # 1 = DoS, 0 = Benign
-    print("Prediction:", "DoS" if prediction.item() == 1 else "Benign")
-
+    app.run(debug=True)
