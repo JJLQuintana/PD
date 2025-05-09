@@ -1,15 +1,18 @@
+from flask import Flask, jsonify
 import torch
 import torch.nn as nn
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
 import os
-from preprocessing import preprocess_input
 
+app = Flask(__name__)
 
-# Define the combined model (LSTM Autoencoder)
+# =====================
+# Model Definition
+# =====================
 class LSTMAutoencoder(nn.Module):
     def __init__(self, input_dim, latent_dim=32, hidden_dim=64):
         super(LSTMAutoencoder, self).__init__()
-
-        # Autoencoder part
         self.encoder = nn.Sequential(
             nn.Linear(input_dim, 128),
             nn.ReLU(),
@@ -20,63 +23,68 @@ class LSTMAutoencoder(nn.Module):
             nn.ReLU(),
             nn.Linear(128, input_dim)
         )
-
-        # LSTM part
         self.lstm = nn.LSTM(input_size=latent_dim, hidden_size=hidden_dim, batch_first=True)
         self.fc = nn.Linear(hidden_dim, 1)
 
     def forward(self, x):
-        # Autoencoder forward pass
         z = self.encoder(x)
         x_reconstructed = self.decoder(z)
-        
-        # LSTM forward pass (expecting sequences of latent vectors)
-        z = z.unsqueeze(1)  # Adding an extra dimension for LSTM (batch_size, seq_len=1, latent_dim)
-        out, _ = self.lstm(z)  # LSTM expects 3D input: (batch_size, seq_len, input_dim)
-        out = self.fc(out[:, -1, :])  # Only consider the last output for classification
-        
+        z = z.unsqueeze(1)  # (batch, seq_len=1, latent_dim)
+        out, _ = self.lstm(z)
+        out = self.fc(out[:, -1, :])
         return x_reconstructed, out
 
-# Model initialization
-model = LSTMAutoencoder(input_dim=77, latent_dim=32, hidden_dim=128)
+# =====================
+# Load Model Once
+# =====================
+MODEL_PATH = os.path.join("Web_app", "Backend", "BEST_LSTM_VANILLAAE_MODEL.pth")
+CSV_PATH = os.path.join("Web_app", "Backend", "Test_pcap.csv")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Check if the directory exists
-model_path = r"C:\Users\Jeyo Quintana\Documents\PD\Web_app\Backend\BEST_LSTM_VANILLA_AE_MODEL.pth"
-model_dir = os.path.dirname(model_path)
+def load_model(input_dim):
+    model = LSTMAutoencoder(input_dim=input_dim, latent_dim=32, hidden_dim=128).to(device)
+    checkpoint = torch.load(MODEL_PATH, map_location=device)
 
-if not os.path.exists(model_dir):
-    print(f"Directory does not exist: {model_dir}")
-else:
-    print(f"Directory exists: {model_dir}")
+    model_state_dict = checkpoint.get('autoencoder_state_dict', {})
+    lstm_state_dict = checkpoint.get('lstm_state_dict', {})
 
-# Check if the model file exists
-if not os.path.exists(model_path):
-    print(f"Model file does not exist at: {model_path}")
-    print(f"Absolute path: {os.path.abspath(model_path)}")
-else:
-    print(f"Model file found at: {model_path}")
+    model.load_state_dict(model_state_dict, strict=False)
+    model.lstm.load_state_dict(lstm_state_dict, strict=False)
+    model.eval()
+    return model
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # Check for GPU availability
+# =====================
+# Inference Route
+# =====================
+@app.route("/predict", methods=["GET"])
+def predict():
+    df = pd.read_csv(CSV_PATH)
+    df.columns = df.columns.str.strip()
 
-# Load checkpoint
-checkpoint = torch.load(model_path, map_location=device)
+    # Label conversion
+    attack_labels = ('DoS GoldenEye', 'DoS Hulk', 'DoS Slowhttptest', 'DoS slowloris', 'Heartbleed')
+    df['Label'] = df['Label'].apply(lambda x: 1 if any(attack in x for attack in attack_labels) else 0)
 
-# The checkpoint seems to have multiple sub-dictionaries
-# Let's print the keys in the checkpoint to understand its structure
-print("Checkpoint keys:", checkpoint.keys())
+    df = df.replace([float('inf'), float('-inf')], pd.NA).dropna()
 
-# Extracting only the state_dicts we need
-model_state_dict = checkpoint.get('autoencoder_state_dict', {})
-lstm_state_dict = checkpoint.get('lstm_state_dict', {})
+    X = df.drop(columns=['Label'])
+    y = df['Label']
 
-# Now let's load the state_dicts into the model
-model.load_state_dict(model_state_dict, strict=False)  # Use strict=False to ignore missing keys
-model.lstm.load_state_dict(lstm_state_dict, strict=False)  # Load LSTM part separately
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    input_tensor = torch.tensor(X_scaled, dtype=torch.float32).to(device)
 
-model.eval()  # Set the model to evaluation mode
+    model = load_model(input_dim=X.shape[1])
 
-# Perform inference
-with torch.no_grad():
-    x_reconstructed, output = model(input_tensor)
-    prediction = (output > 0.5).int()  # 1 = DoS, 0 = Benign
-    print("Prediction:", "DoS" if prediction.item() == 1 else "Benign")
+    with torch.no_grad():
+        _, output = model(input_tensor)
+        predictions = (output > 0.5).int().cpu().numpy().flatten().tolist()
+
+    result = [{"sample": i, "label": "DoS" if pred == 1 else "Benign"} for i, pred in enumerate(predictions)]
+    return jsonify(result)
+
+# =====================
+# Run App
+# =====================
+if __name__ == "__main__":
+    app.run(debug=True)
