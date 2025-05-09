@@ -179,7 +179,7 @@ function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchPrediction();
-    }, 5000);
+    }, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -189,24 +189,34 @@ function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    const data = await response.json(); // data is an array
+    const data = await response.json();
 
     if (!Array.isArray(data)) {
       console.error('Unexpected response format:', data);
       return;
     }
 
+    const now = new Date().toLocaleString();
+
     const formattedLogs = data.map(entry => ({
-      time: new Date().toLocaleString(),
-      type: entry.label, // Use label from backend
+      time: now,
+      type: entry.label, // "DoS" or "Benign"
       policy: `Confidence: ${entry.confidence.toFixed(6)}`
     }));
 
+    // 🔔 Alert if any detection is "DoS"
+    const anyDos = formattedLogs.some(log => log.type === 'DoS');
+    if (anyDos) {
+      alert('⚠️ DoS Attack Detected!');
+    }
+
+    // Insert new logs at the top
     setLogs(prevLogs => [...formattedLogs, ...prevLogs]);
   } catch (error) {
     console.error('Error fetching prediction:', error);
   }
 };
+
 
 
 
@@ -219,7 +229,7 @@ function App() {
           <h3 style={{ margin: 0 }}>Attack Logs</h3>
           <div style={{ textAlign: 'right' }}>
             <button onClick={() => setCurrentTime(new Date())} style={{ ...buttonStyle, width: 'auto', padding: '10px 50px', fontSize: '20px', marginBottom: '5px' }}>
-              Refresh
+              Alert 
             </button>
             <div style={{ fontSize: '12px', color: '#aaa' }}>{currentTime.toLocaleTimeString()}</div>
           </div>
