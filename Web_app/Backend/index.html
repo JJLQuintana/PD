@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DoS Detection Interface</title>
+</head>
+<body>
+  <h1>DoS Detection System</h1>
+  <p>Click the button below to run detection:</p>
+  <button onclick="runDetection()">Run Detection</button>
+  <pre id="result"></pre>
+
+  <script>
+    async function runDetection() {
+      const response = await fetch("/predict", { method: "POST" });
+      const data = await response.json();
+      document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+</html>
