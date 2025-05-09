@@ -138,7 +138,15 @@ function App() {
     const [password, setPassword] = useState('');
     return (
       <div style={pageStyle2}>
-        <h2>Denial of Service Monitoring System</h2>
+        <div style={{ textAlign: 'center' }}>
+          <img
+           src="/logofront.png" 
+           alt="DeepShield Logo" 
+           style={{ width: '250px', marginBottom: '5px' }} 
+        />
+          <h2 style = {{ marginTop: '0' }}> Denial of Service Monitoring System</h2>
+</div>
+
         <input placeholder="Email" onChange={e => setEmail(e.target.value)} style={inputStyle} /><br />
         <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} style={inputStyle} /><br />
         <button onClick={() => handleLogin(email, password)} style={buttonStyle}>Login</button><br /><br />
@@ -165,74 +173,81 @@ function App() {
   };
   
   const DetectionLogs = () => {
-    const [logs, setLogs] = useState([]);
-    const [currentTime, setCurrentTime] = useState(new Date());
-  
-    useEffect(() => {
-      setLogs([]); // Clear previous logs
-      const interval = setInterval(() => {
-        setCurrentTime(new Date());
-      }, 1000);
-      return () => clearInterval(interval);
-    }, []);
-  
-    const fetchPrediction = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/predict', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await response.json();
-setLogs(prevLogs => [
-  ...prevLogs,
-  {
-    time: new Date().toLocaleString(),            // shown in Timestamp column
-    type: data.result === "benign" ? "Benign Traffic" : "Suspicious Activity", // Classification column
-    policy: `Raw Log: ${data.raw_log || 'N/A'}`   // Raw Server Log column
-  }
-]);
+  const [logs, setLogs] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-      } catch (error) {
-        console.error('Error fetching prediction:', error);
-      }
-    };
-  
-    return (
-      <div style={{ ...pageStyle, marginLeft: '260px' }}>
-        <h2>Detection Logs</h2>
-        <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>Attack Logs</h3>
-            <div style={{ textAlign: 'right' }}>
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPrediction();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchPrediction = async () => {
+  try {
+    const response = await fetch('http://localhost:5000/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json(); // data is an array
+
+    if (!Array.isArray(data)) {
+      console.error('Unexpected response format:', data);
+      return;
+    }
+
+    const formattedLogs = data.map(entry => ({
+      time: new Date().toLocaleString(),
+      type: entry.label, // Use label from backend
+      policy: `Confidence: ${entry.confidence.toFixed(6)}`
+    }));
+
+    setLogs(prevLogs => [...formattedLogs, ...prevLogs]);
+  } catch (error) {
+    console.error('Error fetching prediction:', error);
+  }
+};
+
+
+
+
+  return (
+    <div style={{ ...pageStyle, marginLeft: '260px' }}>
+      <h2>Detection Logs</h2>
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0 }}>Attack Logs</h3>
+          <div style={{ textAlign: 'right' }}>
             <button onClick={() => setCurrentTime(new Date())} style={{ ...buttonStyle, width: 'auto', padding: '10px 50px', fontSize: '20px', marginBottom: '5px' }}>
-                Refresh
-              </button>
-              <div style={{ fontSize: '12px', color: '#aaa' }}>{currentTime.toLocaleTimeString()}</div>
-            </div>
+              Refresh
+            </button>
+            <div style={{ fontSize: '12px', color: '#aaa' }}>{currentTime.toLocaleTimeString()}</div>
           </div>
-          <button onClick={fetchPrediction} style={buttonStyle}>Run Detection</button>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-            <thead>
-              <tr>
-                <th style={tableHeaderStyle}>Timestamp</th>
-                <th style={tableHeaderStyle}>Classification</th>
-                <th style={tableHeaderStyle}>Raw Server Log</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log, index) => (
-                <tr key={index}>
-                  <td style={tableCellStyle}>{log.time}</td>
-                  <td style={tableCellStyle}>{log.type}</td>
-                  <td style={tableCellStyle}>{log.policy}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
+        <button onClick={fetchPrediction} style={buttonStyle}>Run Detection</button>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+          <thead>
+            <tr>
+              <th style={tableHeaderStyle}>Timestamp</th>
+              <th style={tableHeaderStyle}>Classification</th>
+              <th style={tableHeaderStyle}>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log, index) => (
+              <tr key={index}>
+                <td style={tableCellStyle}>{log.time}</td>
+                <td style={tableCellStyle}>{log.type}</td>
+                <td style={tableCellStyle}>{log.policy}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-    );
-  };
+    </div>
+  );
+};
+
   
   
   

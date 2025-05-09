@@ -4,8 +4,12 @@ import torch.nn as nn
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 import os
+from flask_cors import CORS
 
-app = Flask(__name__)  # ← Moved up here before any route usage
+
+app = Flask(__name__)
+CORS(app)
+
 
 @app.route("/")
 def home():
@@ -41,8 +45,8 @@ class LSTMAutoencoder(nn.Module):
 # =====================
 # Load Model Once
 # =====================
-MODEL_PATH = r"C:\Users\chris\Downloads\sampol\PD\Web_app\Backend\BEST_LSTM_VANILLAAE_MODEL.pth"
-CSV_PATH = r"C:\Users\chris\Downloads\sampol\PD\Web_app\Backend\Test.pcap_ISCX.csv"
+MODEL_PATH = r"C:\Users\Jeyo Quintana\Documents\PD\Web_app\Backend\BEST_LSTM_VANILLAAE_MODEL.pth"
+CSV_PATH = r"C:\Users\Jeyo Quintana\Documents\PD\Web_app\Backend\sample_1.csv"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def load_model(input_dim):
@@ -66,7 +70,8 @@ def predict():
     df.columns = df.columns.str.strip()
 
     attack_labels = ('DoS GoldenEye', 'DoS Hulk', 'DoS Slowhttptest', 'DoS slowloris', 'Heartbleed')
-    df['Label'] = df['Label'].apply(lambda x: 1 if any(attack in x for attack in attack_labels) else 0)
+    df['Label'] = df['Label'].apply(lambda x: 1 if any(attack in str(x) for attack in attack_labels) else 0)
+
 
     df = df.replace([float('inf'), float('-inf')], pd.NA).dropna()
 
@@ -86,6 +91,7 @@ def predict():
 
         print("Raw model outputs (first 10):", output[:10].cpu().numpy())  # Log confidence scores
         print("DoS samples:", (y == 1).sum(), "| Benign samples:", (y == 0).sum())
+        print(df['Label'].head(10))
 
         THRESHOLD = 0.5
         predictions = (output > THRESHOLD).int().cpu().numpy().flatten().tolist()
