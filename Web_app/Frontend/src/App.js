@@ -1,47 +1,92 @@
 import React, { useState, useEffect } from 'react';
-import Systemconfig from './Systemconfig'
-
-
+import { FaClipboardCheck, FaBan, FaCogs, FaUserShield, FaChartBar, FaBars, FaClipboardList } from 'react-icons/fa';
+import { motion} from 'framer-motion';
 
 const Sidebar = ({ setPage }) => {
-  return (
-    <div style={sidebarStyle}>
-      <div style={{ ...sidebarHeader, paddingBottom: '10px' }}>
-        <img src="/logofront.png" alt="DeepShield Logo" style={{ width: '100%', maxHeight: '80px', objectFit: 'contain' }} />
-      </div>
+  const [isOpen, setIsOpen] = useState(true);
 
-      <ul style={sidebarList}>
-        <li style={sidebarItem} onClick={() => setPage('whitelist')}>
-          <div style={sidebarIconContainer}>
-            <img src="/whitelist.png" alt="Whitelist" style={iconStyle} />
-            <span>Whitelist</span>
-          </div>
-        </li>
-        <li style={sidebarItem} onClick={() => setPage('blacklist')}>
-          <div style={sidebarIconContainer}>
-            <img src="/blacklist.png" alt="Blacklist" style={iconStyle} />
-            <span>Blacklist</span>
-          </div>
-        </li>
-        <li style={sidebarItem} onClick={() => setPage('system configuration')}>
-          <div style={sidebarIconContainer}>
-            <span>Systemconfig</span>
-          </div>
-        </li>
-        <li style={sidebarItem} onClick={() => setPage('authorized admin')}>
-          <div style={sidebarIconContainer}>
-            <span>Admin</span>
-          </div>
-        </li>
-        <li style={sidebarItem} onClick={() => setPage('reports')}>
-          <div style={sidebarIconContainer}>
-            <span>Reports</span>
-          </div>
-        </li>
-      </ul>
-    </div>
+  const handleClick = (page) => {
+    setPage(page);
+  };
+
+  const toggleSidebar = () => {
+    setIsOpen((prev) => !prev);
+  };
+
+  return (
+    <>
+      <button onClick={toggleSidebar} style={toggleButtonStyle}>
+        <FaBars size ={28} />
+      </button>
+
+      <motion.div
+        animate={{ width: isOpen ? 200 : 70 }}
+        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        style={{
+          ...sidebarStyle,
+          width: isOpen ? '200px' : '70px',
+          overflowX: 'hidden'
+        }}
+      >
+ <div style={{ ...sidebarHeader, paddingBottom: '10px' }}>
+  {isOpen && (
+    <>
+      <img
+        src="/logofront.png"
+        alt="DeepShield Logo"
+        style={{ width: '100%', maxHeight: '80px', objectFit: 'contain' }}
+      />
+      <p style={{ marginTop: '5px', fontSize: '14px', color: '#ccc' }}>DeepShield</p>
+    </>
+  )}
+</div>
+
+
+        <ul style={sidebarList}>
+          <motion.li whileTap={{ scale: 0.95 }} style={sidebarItem} onClick={() => handleClick('whitelist')}>
+            <div style={sidebarIconOnlyStyle}>
+              <FaClipboardCheck style={iconStyle} />
+              {isOpen && <span>Whitelist</span>}
+            </div>
+          </motion.li>
+          <motion.li whileTap={{ scale: 0.95 }} style={sidebarItem} onClick={() => handleClick('blacklist')}>
+            <div style={sidebarIconOnlyStyle}>
+              <FaBan style={iconStyle} />
+              {isOpen && <span>Blacklist</span>}
+            </div>
+          </motion.li>
+          <motion.li whileTap={{ scale: 0.95 }} style={sidebarItem} onClick={() => handleClick('system configuration')}>
+            <div style={sidebarIconOnlyStyle}>
+              <FaCogs style={iconStyle} />
+              {isOpen && <span>Systemconfig</span>}
+            </div>
+          </motion.li>
+          <motion.li whileTap={{ scale: 0.95 }} style={sidebarItem} onClick={() => handleClick('authorized admin')}>
+            <div style={sidebarIconOnlyStyle}>
+              <FaUserShield style={iconStyle} />
+              {isOpen && <span>Admin</span>}
+            </div>
+          </motion.li>
+          <motion.li whileTap={{ scale: 0.95 }} style={sidebarItem} onClick={() => handleClick('reports')}>
+            <div style={sidebarIconOnlyStyle}>
+              <FaChartBar style={iconStyle} />
+              {isOpen && <span>Reports</span>}
+            </div>
+          </motion.li>
+          <motion.li whileTap={{ scale: 0.95 }} style={sidebarItem} onClick={() => handleClick('policies')}>
+            <div style={sidebarIconOnlyStyle}>
+              <FaClipboardList style={iconStyle} />
+              {isOpen && <span>Policies</span>}
+            </div>
+          </motion.li>
+        </ul>
+      </motion.div>
+    </>
   );
 };
+
+
+
 
 function App() {
   const [page, setPage] = useState('login');
@@ -124,8 +169,7 @@ function App() {
       <Sidebar setPage={setPage} />
       <div style={{ marginLeft: '250px', width: 'calc(100% - 250px)' }}>
         <nav style={topNavStyle}>
-          <button onClick={() => setPage('detection logs')} style={navButton}>Detection Logs</button>
-          <button onClick={() => setPage('policies')} style={navButton}>Policies</button>
+          <button onClick={() => setPage('detection logs')} style={navButton}>Dashboard</button>
           <button onClick={() => setPage('settings')} style={navButton}>Settings</button>
           <button onClick={() => { setIsLoggedIn(false); setPage('login'); setCurrentUser(null); }} style={navButton}>Logout</button>
         </nav>
@@ -179,7 +223,11 @@ function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchPrediction();
+<<<<<<< HEAD
     }, 20000);
+=======
+    }, 50000);
+>>>>>>> 88ace399 (May 20, 2025)
     return () => clearInterval(interval);
   }, []);
 
@@ -189,13 +237,18 @@ function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
+<<<<<<< HEAD
     const data = await response.json();
+=======
+    const data = await response.json(); // data is an array
+>>>>>>> 88ace399 (May 20, 2025)
 
     if (!Array.isArray(data)) {
       console.error('Unexpected response format:', data);
       return;
     }
 
+<<<<<<< HEAD
     const now = new Date().toLocaleString();
 
     const formattedLogs = data.map(entry => ({
@@ -211,6 +264,14 @@ function App() {
     }
 
     // Insert new logs at the top
+=======
+    const formattedLogs = data.map(entry => ({
+      time: new Date().toLocaleString(),
+      type: entry.label, // Use label from backend
+      policy: `Confidence: ${entry.confidence.toFixed(6)}`
+    }));
+
+>>>>>>> 88ace399 (May 20, 2025)
     setLogs(prevLogs => [...formattedLogs, ...prevLogs]);
   } catch (error) {
     console.error('Error fetching prediction:', error);
@@ -220,7 +281,10 @@ function App() {
 
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 88ace399 (May 20, 2025)
   return (
     <div style={{ ...pageStyle, marginLeft: '260px' }}>
       <h2>Detection Logs</h2>
@@ -229,7 +293,11 @@ function App() {
           <h3 style={{ margin: 0 }}>Attack Logs</h3>
           <div style={{ textAlign: 'right' }}>
             <button onClick={() => setCurrentTime(new Date())} style={{ ...buttonStyle, width: 'auto', padding: '10px 50px', fontSize: '20px', marginBottom: '5px' }}>
+<<<<<<< HEAD
               Alert 
+=======
+              Refresh
+>>>>>>> 88ace399 (May 20, 2025)
             </button>
             <div style={{ fontSize: '12px', color: '#aaa' }}>{currentTime.toLocaleTimeString()}</div>
           </div>
@@ -483,22 +551,67 @@ function App() {
       {isLoggedIn && page === 'settings' && <Settings />}
       {isLoggedIn && page === 'whitelist' && <Whitelist />}
       {isLoggedIn && page === 'blacklist' && <Blacklist />}
-      {isLoggedIn && page === 'systemconfig' && <SystemConfig />}
+      {isLoggedIn && page === 'systemConfig' && <SystemConfig />}
       {isLoggedIn && page === 'authorized admin' && <Admin />}
       {isLoggedIn && page === 'reports' && <Reports />}
-      {isLoggedIn && page === 'system configuration' && <Systemconfig />}
+      {isLoggedIn && page === 'system configuration' && <SystemConfig />}
       
       
     </div>
   );
 }
 
-const sidebarIconContainer = { display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' };
-const iconStyle = { width: '50px', maxWidth: '50px', objectFit: 'contain', marginBottom: '5px' };
-const sidebarStyle = { position: 'fixed', top: 0, left: 0, width: '200px', height: '100%', backgroundColor: '#1e1e1e', padding: '20px 10px', overflowY: 'auto', borderRadius: '0 20px 20px 0' };
-const sidebarHeader = { textAlign: 'center', marginBottom: 10, color: '#fff' };
-const sidebarList = { listStyleType: 'none', padding: 0 };
-const sidebarItem = { padding: '10px', color: '#ccc', cursor: 'pointer' };
+const toggleButtonStyle = {
+  position: 'fixed',
+  top: '10px',
+  left: '10px',
+  zIndex: 1000,
+  backgroundColor: '#1e1e1e',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '6px',
+  padding: '10px',
+  cursor: 'pointer'
+};
+const iconStyle = {
+  width: '24px',
+  height: '24px'
+};
+
+const sidebarStyle = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  height: '100%',
+  backgroundColor: '#1e1e1e',
+  padding: '20px 10px',
+  overflowY: 'auto',
+  borderRadius: '0 20px 20px 0'
+};
+
+const sidebarHeader = {
+  textAlign: 'center',
+  marginBottom: 10,
+  color: '#fff'
+};
+
+const sidebarList = {
+  listStyleType: 'none',
+  padding: 0,
+  paddingTop:'20px'
+};
+const sidebarItem = {
+  padding: '10px',
+  color: '#ccc',
+  cursor: 'pointer'
+};
+
+const sidebarIconOnlyStyle = {
+  display: 'flex',
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: '10px'
+};
 const topNavStyle = { backgroundColor: '#1f1f1f', padding: 10, display: 'flex', justifyContent: 'center', borderRadius: '0 0 12px 12px' };
 const navButton = { color: '#fff', background: 'none', border: 'none', marginRight: 20, fontSize: '16px', cursor: 'pointer' };
 const pageStyle = { padding: 20, fontFamily: 'Arial, sans-serif' };
